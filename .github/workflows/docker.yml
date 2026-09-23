@@ -48,9 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository }}:0.1.0"
-          # Do not assume port 8080. Many valid apps listen on 3000/4173/5173/etc.
-          # Prefer image EXPOSE values, then probe a small universal web-port set.
+          IMAGE="ghcr.io/${{ github.repository }}:latest"
           mapfile -t EXPOSED < <(docker image inspect "${IMAGE}" --format '{{range $p, $_ := .Config.ExposedPorts}}{{println $p}}{{end}}' 2>/dev/null | sed -E 's#/.*$##' | sed '/^$/d' | sort -u)
           COMMON=(3000 3001 4173 5000 5173 6080 8000 8080 8081 8501)
           PORTS=()
@@ -100,7 +98,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r tag; do
+          while IFS= read -r tag;
+          do
             [[ -n "$tag" ]] || continue
             echo "Pushing tested image: $tag"
             docker image push "$tag"
