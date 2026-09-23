@@ -9,19 +9,19 @@ tạo cho tôi app lưu trữ file qua SoloHost
 {
   "functionality": 95,
   "security": 90,
-  "reliability": 90,
-  "performance": 95,
+  "reliability": 95,
+  "performance": 90,
   "documentation": 95,
-  "overall": 92,
+  "overall": 93,
   "verdict": "PASS",
   "findings": [
-    "The application structure is complete with all required SoloHost deployment files (docker-compose.yml, config_options.yml, Dockerfile, and GitHub Actions workflow).",
-    "Server implementation includes a health/readiness endpoint as required.",
-    "No hardcoded port references; properly respects process.env.PORT || 8080.",
-    "Proper separation of configuration variables between .env and config_options.yml.",
-    "Certified 'Made with App Builder — Pi SoloHost' badge is integrated into the UI."
+    "Complete file manifest present including all required SoloHost deployment configs (docker-compose.yml, config_options.yml).",
+    "App successfully exposes standard health endpoints and listens on PORT (default 8080).",
+    "Proper separation of configuration through environment variables and config_options.yml.",
+    "Comprehensive documentation and release notes provided for end-users.",
+    "No hardcoded secrets or privileged Docker options detected in the configuration files."
   ],
-  "reply": "The SoloStore project review is complete. All necessary SoloHost manifest files, configuration options, health checks, and build workflows are properly structured and ready for release."
+  "reply": "The SoloStore project inspection is complete. All necessary SoloHost configuration files, server logic, tests, and documentation are in place and correctly structured. The app passes safety and reliability checks."
 }
 
 ## Install
