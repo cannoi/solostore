@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoloStore - Self-Hosted File Storage</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>.paf-made-by{position:fixed;right:8px;bottom:8px;width:min(72px,12vw);max-width:12vw;height:auto;object-fit:contain;opacity:.5;background:transparent;padding:0;border:0;box-shadow:none;filter:none;pointer-events:none;z-index:30}</style></head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-600 text-white p-2 rounded-lg shadow-md">
+          <i class="fa-solid fa-box-archive text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">SoloStore</h1>
+          <p class="text-xs text-slate-500">Private Self-Hosted File Storage</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div id="storage-stats" class="text-xs bg-slate-100 px-3 py-1.5 rounded-full text-slate-600 font-medium border border-slate-200">
+          <i class="fa-solid fa-database mr-1 text-blue-500"></i> Loading storage...
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col">
+    
+    <!-- Actions & Breadcrumbs Toolbar -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+      <div class="flex items-center space-x-2 text-sm text-slate-600" id="breadcrumb">
+        <button onclick="navigateToFolder(null)" class="hover:text-blue-600 font-medium flex items-center">
+          <i class="fa-solid fa-house mr-1.5"></i> Root
+        </button>
+      </div>
+      
+      <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <div class="relative flex-1 sm:w-64">
+          <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-search"></i>
+          </span>
+          <input type="text" id="search-input" placeholder="Search files..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white">
+        </div>
+        
+        <button onclick="openNewFolderModal()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium px-4 py-2 rounded-lg text-sm flex items-center shadow-sm transition">
+          <i class="fa-solid fa-folder-plus mr-2 text-blue-500"></i> New Folder
+        </button>
+        
+        <label class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm flex items-center shadow-sm cursor-pointer transition">
+          <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload File
+          <input type="file" id="file-upload-input" class="hidden" onchange="handleFileUpload(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- Upload Progress Bar -->
+    <div id="upload-progress-container" class="hidden mb-6 bg-blue-50 border border-blue-200 p-4 rounded-xl">
+      <div class="flex justify-between text-sm font-medium text-blue-900 mb-1">
+        <span id="upload-status-text">Uploading file...</span>
+        <span id="upload-percent">0%</span>
+      </div>
+      <div class="w-full bg-blue-200 rounded-full h-2.5">
+        <div id="upload-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Content Grid / Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+      <div class="overflow-x-auto flex-1">
+        <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 font-semibold">
+            <tr>
+              <th class="py-3.5 pl-6 pr-3">Name</th>
+              <th class="px-3 py-3.5">Size</th>
+              <th class="px-3 py-3.5">Type</th>
+              <th class="px-3 py-3.5">Date Added</th>
+              <th class="py-3.5 pl-3 pr-6 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody" class="divide-y divide-slate-100 bg-white">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden flex-col items-center justify-center py-16 px-4 text-center">
+        <div class="bg-slate-100 p-4 rounded-full text-slate-400 mb-3">
+          <i class="fa-solid fa-folder-open text-3xl"></i>
+        </div>
+        <h3 class="text-base font-semibold text-slate-700">This folder is empty</h3>
+        <p class="text-sm text-slate-500 mt-1">Upload files or create a folder to get started.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- New Folder Modal -->
+  <div id="folder-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+      <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center">
+        <i class="fa-solid fa-folder-plus text-blue-600 mr-2"></i> Create New Folder
+      </h3>
+      <form onsubmit="createFolder(event)">
+        <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Folder Name</label>
+          <input type="text" id="new-folder-name" required placeholder="e.g. Documents, Photos" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button type="button" onclick="closeNewFolderModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium text-sm hover:bg-slate-50">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 shadow-sm">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="preview-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <h3 id="preview-title" class="font-bold text-slate-800 truncate">File Preview</h3>
+        <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="preview-body" class="p-6 flex-1 flex items-center justify-center overflow-auto bg-slate-900/5">
+        <!-- Dynamic preview content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="py-4 text-center text-xs text-slate-400 border-t border-slate-200 mt-auto">
+    <span class="paf-made-by">Made with App Builder — Pi SoloHost</span>
+  </footer>
+
+  <script>
+    let currentFolderId = null;
+    let currentSearch = '';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      
+      const searchInput = document.getElementById('search-input');
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          currentSearch = e.target.value.trim();
+          loadData();
+        }, 300);
+      });
+    });
+
+    function formatBytes(bytes, decimals = 2) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    async function loadData() {
+      try {
+        // Load Stats
+        const statsRes = await fetch('/api/stats');
+        const stats = await statsRes.json();
+        document.getElementById('storage-stats').innerHTML = `<i class="fa-solid fa-database mr-1 text-blue-500"></i> ${formatBytes(stats.total_size)} used (${stats.file_count} files, ${stats.folder_count} folders)`;
+
+        // Load Folders & Files
+        const folderQueryParam = currentFolderId ? `?parent_id=${currentFolderId}` : '?parent_id=null';
+        const searchQueryParam = currentSearch ? `?search=${encodeURIComponent(currentSearch)}` : '';
+        
+        const [foldersRes, filesRes] = await Promise.all([
+          fetch(currentSearch ? '/api/folders' : `/api/folders${folderQueryParam}`),
+          fetch(`/api/files${searchQueryParam}${currentSearch && currentFolderId ? '&folder_id=' + currentFolderId : (currentSearch ? '' : folderQueryParam)}`)
+        ]);
+
+        const folders = await foldersRes.json();
+        const files = await filesRes.json();
+
+        renderItems(folders, files);
+      } catch (err) {
+        console.error('Failed to load data', err);
+      }
+    }
+
+    function renderItems(folders, files) {
+      const tbody = document.getElementById('items-tbody');
+      const emptyState = document.getElementById('empty-state');
+      tbody.innerHTML = '';
+
+      const totalItems = folders.length + files.length;
+      if (totalItems === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+        return;
+      } else {
+        emptyState.classList.remove('flex');
+        emptyState.classList.add('hidden');
+      }
+
+      // Render Folders
+      folders.forEach(folder => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition cursor-pointer';
+        tr.onclick = (e) => {
+          if (e.target.closest('button')) return;
+          navigateToFolder(folder.id);
+        };
+        tr.innerHTML = `
+          <td class="py-3.5 pl-6 pr-3 font-medium text-slate-800 flex items-center">
+            <i class="fa-solid fa-folder text-amber-400 mr-3 text-lg"></i> ${escapeHtml(folder.name)}
+          </td>
+          <td class="px-3 py-3.5 text-slate-500">—</td>
+          <td class="px-3 py-3.5 text-slate-500">Folder</td>
+          <td class="px-3 py-3.5 text-slate-500">${new Date(folder.created_at).toLocaleDateString()}</td>
+          <td class="py-3.5 pl-3 pr-6 text-right">
+            <button onclick="deleteFolder('${folder.id}')" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Render Files
+      files.forEach(file => {
+        const isImage = file.mimetype && file.mimetype.startsWith('image/');
+        const iconClass = isImage ? 'fa-file-image text-emerald-500' : 'fa-file-lines text-blue-500';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition';
+        tr.innerHTML = `
+          <td class="py-3.5 pl-6 pr-3 font-medium text-slate-800 flex items-center">
+            <i class="fa-solid ${iconClass} mr-3 text-lg"></i> 
+            <span class="truncate max-w-xs" title="${escapeHtml(file.original_name)}">${escapeHtml(file.original_name)}</span>
+          </td>
+          <td class="px-3 py-3.5 text-slate-500">${formatBytes(file.size)}</td>
+          <td class="px-3 py-3.5 text-slate-500 uppercase text-xs font-semibold">${file.mimetype ? file.mimetype.split('/')[1] || 'file' : 'file'}</td>
+          <td class="px-3 py-3.5 text-slate-500">${new Date(file.created_at).toLocaleDateString()}</td>
+          <td class="py-3.5 pl-3 pr-6 text-right space-x-1">
+            ${isImage ? `<button onclick="previewFile('${file.id}', '${escapeHtml(file.original_name)}', '${file.name}')" class="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg transition" title="Preview"><i class="fa-solid fa-eye"></i></button>` : ''}
+            <a href="/api/files/${file.id}/download" class="text-slate-400 hover:text-emerald-600 p-1.5 rounded-lg transition inline-block" title="Download"><i class="fa-solid fa-download"></i></a>
+            <button onclick="deleteFile('${file.id}')" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg transition" title="Delete"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function navigateToFolder(folderId) {
+      currentFolderId = folderId;
+      currentSearch = '';
+      document.getElementById('search-input').value = '';
+      loadData();
+    }
+
+    function openNewFolderModal() {
+      document.getElementById('folder-modal').classList.remove('hidden');
+      document.getElementById('folder-modal').classList.add('flex');
+      document.getElementById('new-folder-name').focus();
+    }
+
+    function closeNewFolderModal() {
+      document.getElementById('folder-modal').classList.remove('flex');
+      document.getElementById('folder-modal').classList.add('hidden');
+      document.getElementById('new-folder-name').value = '';
+    }
+
+    async function createFolder(event) {
+      event.preventDefault();
+      const name = document.getElementById('new-folder-name').value.trim();
+      if (!name) return;
+
+      try {
+        const res = await fetch('/api/folders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, parent_id: currentFolderId })
+        });
+        if (res.ok) {
+          closeNewFolderModal();
+          loadData();
+        } else {
+          alert('Failed to create folder');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function deleteFolder(id) {
+      if (!confirm('Are you sure you want to delete this folder?')) return;
+      try {
+        const res = await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+        if (res.ok) loadData();
+        else alert('Failed to delete folder');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (currentFolderId) {
+        formData.append('folder_id', currentFolderId);
+      }
+
+      const progressContainer = document.getElementById('upload-progress-container');
+      const progressBar = document.getElementById('upload-bar');
+      const progressPercent = document.getElementById('upload-percent');
+      const statusText = document.getElementById('upload-status-text');
+
+      progressContainer.classList.remove('hidden');
+      statusText.innerText = `Uploading ${file.name}...`;
+      progressBar.style.width = '0%';
+      progressPercent.innerText = '0%';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/files', true);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = percent + '%';
+          progressPercent.innerText = percent + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        progressContainer.classList.add('hidden');
+        event.target.value = '';
+        if (xhr.status === 200) {
+          loadData();
+        } else {
+          alert('Upload failed');
+        }
+      };
+
+      xhr.onerror = () => {
+        progressContainer.classList.add('hidden');
+        event.target.value = '';
+        alert('Upload error');
+      };
+
+      xhr.send(formData);
+    }
+
+    async function deleteFile(id) {
+      if (!confirm('Are you sure you want to delete this file?')) return;
+      try {
+        const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
+        if (res.ok) loadData();
+        else alert('Failed to delete file');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function previewFile(id, originalName, storedName) {
+      document.getElementById('preview-title').innerText = originalName;
+      const body = document.getElementById('preview-body');
+      body.innerHTML = `<img src="/uploads/${storedName}" class="max-h-[70vh] rounded-lg shadow-md object-contain" alt="${escapeHtml(originalName)}">`;
+      
+      document.getElementById('preview-modal').classList.remove('hidden');
+      document.getElementById('preview-modal').classList.add('flex');
+    }
+
+    function closePreviewModal() {
+      document.getElementById('preview-modal').classList.remove('flex');
+      document.getElementById('preview-modal').classList.add('hidden');
+      document.getElementById('preview-body').innerHTML = '';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+<img class="paf-made-by" src="/made-by.png" alt="Made with App Builder — Pi SoloHost"></body>
+</html>
